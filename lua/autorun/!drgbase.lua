@@ -337,9 +337,9 @@ end
 
 -- Import --
 
-DrGBase.IncludeFolder("drgbase/modules")
+DrGBase.RecursiveInclude("drgbase/modules")
 DrGBase.IncludeFolder("drgbase")
-DrGBase.IncludeFolder("drgbase/metatables")
+DrGBase.RecursiveInclude("drgbase/metatables")
 DrGBase.IncludeFolder("drgbase/autorun")
 DrGBase.IncludeFolder("drgbase/autorun/server")
 DrGBase.IncludeFolder("drgbase/autorun/client")

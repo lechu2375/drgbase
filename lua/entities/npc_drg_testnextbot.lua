@@ -80,9 +80,19 @@ if SERVER then
   end
 
   function ENT:OnPossessionBinds(binds)
-    if binds:WasPressed("IN_ATTACK") then
+    if binds:KeyPressed(IN_ATTACK) then
       self:DoMeleeAttack()
     end
+  end
+
+  function ENT:OnTakeDamage(dmg, hitgroup)
+    if hitgroup == HITGROUP_HEAD then
+      dmg:ScaleDamage(100)
+    end
+  end
+
+  function ENT:DoDeath()
+    self:PlayActivityAndMove(ACT_GMOD_DEATH)
   end
 
 end

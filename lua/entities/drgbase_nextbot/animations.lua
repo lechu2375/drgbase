@@ -219,12 +219,12 @@ if SERVER then
     local args, n = table.DrG_Pack(...)
     local pos = self:GetPos()
     local res = self:PlaySequenceAndWait(seq, options, function(self, cycle, lastCycle)
-      local ok, vec, angles = self:GetSequenceMovement(seq, lastCycle == -1 and 0 or lastCycle, cycle)
+      local ok, vec, ang = self:GetSequenceMovement(seq, lastCycle == -1 and 0 or lastCycle, cycle)
       if ok then
         vec = vec*self:GetModelScale()
         if isnumber(options.multiply) or isvector(options.multiply) then vec = vec*options.multiply end
-        if options.rotate then self:SetAngles(self:LocalToWorldAngles(angles)) end
-        vec:Rotate(self:LocalToWorldAngles(angles))
+        if options.rotate then self:SetAngles(self:LocalToWorldAngles(ang)) end
+        vec:Rotate(self:LocalToWorldAngles(ang))
         if options.absolute then
           self:SetVelocity(Vector())
           pos = pos + vec

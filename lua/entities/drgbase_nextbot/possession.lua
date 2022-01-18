@@ -440,7 +440,9 @@ if SERVER then
   hook.Add("PlayerButtonDown", "DrG/PossessionPlayerButtonDown", function(ply, button)
     if not ply:DrG_IsPossessing() then return end
     local possessing = ply:DrG_GetPossessing()
-    if button == ply:GetInfoNum("drgbase_possession_bind_views", KEY_V) then
+    if button == ply:GetInfoNum("drgbase_possession_bind_stop", KEY_X) then
+      possessing:StopPossession()
+    elseif button == ply:GetInfoNum("drgbase_possession_bind_next_view", KEY_V) then
       local view = possessing:OnPossessionNextView(possessing:GetPossessionView())
       if isnumber(view) then possessing:SetPossessionView(view) end
     end

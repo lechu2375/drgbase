@@ -45,11 +45,16 @@ function ENT:IsMovingBackwardRight()
   return self:IsMovingBackward() and self:IsMovingRight()
 end
 
-function ENT:IsTurningLeft()
-  return false
+function ENT:IsTurning(prec)
+  return math.Round(self:GetAngles().y, prec) ~= math.Round(self.DrG_PreviousAngle.y, prec)
 end
-function ENT:IsTurningRight()
-  return false
+function ENT:IsTurningLeft(prec)
+  if not self:IsTurning(prec) then return false end
+  return math.AngleDifference(self:GetAngles().y, self.DrG_PreviousAngle.y) > 0
+end
+function ENT:IsTurningRight(prec)
+  if not self:IsTurning(prec) then return false end
+  return math.AngleDifference(self:GetAngles().y, self.DrG_PreviousAngle.y) < 0
 end
 
 if SERVER then
@@ -103,9 +108,12 @@ if SERVER then
     if isentity(pos) then pos = pos:GetPos() end
     self.loco:FaceTowards(pos)
   end
-  function ENT:FaceEnemy()
+  function ENT:FaceTowardsEnemy()
     if not self:HasEnemy() then return end
     self:FaceTowards(self:GetEnemy())
+  end
+  function ENT:FaceTowardsVelocity()
+    self:FaceTowards(self:GetPos() + self:GetVelocity())
   end
   function ENT:FaceInstant(pos)
     if isentity(pos) then pos = pos:GetPos() end

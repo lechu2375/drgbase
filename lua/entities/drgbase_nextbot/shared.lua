@@ -209,7 +209,7 @@ function ENT:DrG_PreInitialize()
         ent:EmitSound("NPC_CombineBall.Impact")
       end
     end)
-    -- locomotion --
+    -- locomotion
     local scale = self:GetModelScale()
     self:SetAcceleration(self.Acceleration*scale)
     self:SetDeceleration(self.Deceleration*scale)
@@ -220,10 +220,10 @@ function ENT:DrG_PreInitialize()
     -- misc
     self:SetBloodColor(self.BloodColor)
     self:SetUseType(SIMPLE_USE)
+    self:JoinFactions(self.Factions)
     self:AddCallback("OnAngleChange", function(self, ang)
       self:OnAngleChange(ang)
     end)
-    self:JoinFactions(self.Factions)
     self.VJ_AddEntityToSNPCAttackList = true
     self.vFireIsCharacter = true
     -- parallel coroutines
@@ -279,6 +279,7 @@ function ENT:DrG_PreInitialize()
       end
     end)
   else self:SetIK(true) end
+  self.DrG_PreviousAngle = self:GetAngles()
   self:AddFlags(FL_OBJECT + FL_NPC)
   table.insert(DrG_Nextbots, self)
 end
@@ -307,6 +308,11 @@ function ENT:DrG_PreThink(...)
   end
   self:DrG_PlayAnimEvents(seq, curCycle, self.DrG_LastCycle)
   self.DrG_LastCycle = curCycle
+  -- angle
+  local ang = self:GetAngles()
+  self:Timer(0.1, function(self)
+    self.DrG_PreviousAngle = ang
+  end)
   -- misc
   if SERVER then
     if self.DrG_OnFire and not self:IsOnFire() then
@@ -574,7 +580,8 @@ else
   DrGBase.BGMEnabled = DrGBase.SharedClientConVar("drgbase_bgm_enabled", "1")
   DrGBase.BGMVolume = DrGBase.ClientConVar("drgbase_bgm_volume", "1")
 
-  DrGBase.PossessionBindsViews = DrGBase.SharedClientConVar("drgbase_possession_bind_views", KEY_V)
+  DrGBase.PossessionBindStop = DrGBase.SharedClientConVar("drgbase_possession_bind_stop", KEY_X)
+  DrGBase.PossessionBindNextView = DrGBase.SharedClientConVar("drgbase_possession_bind_next_view", KEY_V)
 
   DrGBase.DebugSight = DrGBase.ClientConVar("drgbase_debug_sight", "0")
 

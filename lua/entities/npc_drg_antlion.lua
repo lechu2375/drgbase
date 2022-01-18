@@ -62,7 +62,7 @@ if SERVER then
       self:PlaySequenceAndWait("drown", {gravity = false}, function(self)
         if self:WaterLevel() < 2 then return true end
         local dmg = DamageInfo()
-        dmg:SetDamage(0.05)
+        dmg:SetDamage(0.1)
         dmg:SetDamageType(DMG_DROWN)
         self:TakeDamageInfo(dmg)
       end)
@@ -79,12 +79,10 @@ if SERVER then
   -- Possession --
 
   function ENT:DoPossessionBinds(binds)
-    if binds:IsDown("IN_ATTACK") then self:DoMeleeAttack() end
-    if binds:IsDown("IN_JUMP") then
+    if binds:KeyDown(IN_ATTACK) then self:DoMeleeAttack() end
+    if binds:KeyDown(IN_JUMP) then
       local pos = self:PossessorEyeTrace(1000).HitPos
-      self:Jump(pos, function(self)
-        self:FaceTowards(self:GetPos() + self:GetVelocity())
-      end)
+      self:Jump(pos, self.FaceTowardsVelocity)
     end
   end
 
@@ -102,6 +100,12 @@ if SERVER then
   function ENT:DoLandOnGround()
     print("a")
     self:PlaySequenceAndMove("jump_stop")
+  end
+
+  function ENT:OnTakeDamage(dmg)
+    if dmg:IsDamageType(DMG_PHYSGUN) and dmg:GetDamage() < 4 then
+      dmg:SetDamage(4)
+    end
   end
 
   function ENT:DoTakeDamage(dmg)

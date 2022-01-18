@@ -47,6 +47,7 @@ hook.Add("DrG/LoadLanguages", "DrG/EnglishLanguage", function()
   lang:Set("drgbase.spawnmenu.nextbots.possession.server.enabled", "Enable possession")
   lang:Set("drgbase.spawnmenu.nextbots.possession.server.spawn_with_possessor", "Spawn with possessor")
   lang:Set("drgbase.spawnmenu.nextbots.possession.client", "Client Settings")
+  lang:Set("drgbase.spawnmenu.nextbots.possession.client.binds.stop", "Stop possession")
   lang:Set("drgbase.spawnmenu.nextbots.possession.client.binds.views", "Next camera")
 
   lang:Set("drgbase.spawnmenu.nextbots.misc", "Misc")

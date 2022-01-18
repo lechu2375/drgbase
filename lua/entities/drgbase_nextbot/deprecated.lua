@@ -73,6 +73,13 @@ if SERVER then
 
   -- Movements --
 
+  ENT.FaceEnemy = DrGBase.Deprecated(
+    "ENT:FaceEnemy()",
+    "ENT:FaceTowardsEnemy()",
+    function(self)
+      return self:FaceTowardsEnemy()
+    end)
+
   -- Detection --
 
   ENT.HasSpotted = DrGBase.Deprecated(

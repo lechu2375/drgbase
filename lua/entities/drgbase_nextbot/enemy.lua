@@ -142,9 +142,9 @@ if SERVER then
     if isfunction(self.OnIdleEnemy) then
       OnIdleEnemyDeprecation()
       if self:OnIdleEnemy(enemy) ~= true then
-        self:FaceEnemy()
+        self:FaceTowardsEnemy()
       end
-    else self:FaceEnemy() end
+    else self:FaceTowardsEnemy() end
   end
   function ENT:DoEnemyUnreachable(enemy)
     if isfunction(self.OnEnemyUnreachable) then

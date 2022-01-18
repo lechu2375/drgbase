@@ -339,14 +339,14 @@ if SERVER then
     if not istable(ent.DrG_Listening) then return end
     local pos = sound.Pos or ent:GetPos()
     local radius = math.pow(sound.SoundLevel/2, 2)*sound.Volume
-    for nextbot in pairs(ent.DrG_Listening) do
-      if not IsValid(nextbot) or not nextbot.IsDrGNextbot then continue end
-      if nextbot:GetHearingCoefficient() == 0 then continue end
-      local mult = nextbot:VisibleVec(pos) and 1 or 0.5
-      if (radius*nextbot:GetHearingCoefficient()*mult)^2 >= nextbot:GetRangeSquaredTo(pos) then
-        nextbot:OnEntitySound(ent, sound)
-        nextbot:ReactInCoroutine(nextbot.DoEntitySound, ent, sound)
-        if ent:IsPlayer() then ent:DrG_Send("DrG/PlayerSound", nextbot) end
+    for nb in pairs(ent.DrG_Listening) do
+      if not IsValid(nb) or not nb.IsDrGNextbot then continue end
+      if nb:GetHearingCoefficient() == 0 then continue end
+      local mult = nb:VisibleVec(pos) and 1 or 0.5
+      if (radius*nb:GetHearingCoefficient()*mult)^2 >= nb:GetRangeSquaredTo(pos) then
+        nb:OnEntitySound(ent, sound)
+        nb:ReactInCoroutine(nb.DoEntitySound, ent, sound)
+        if ent:IsPlayer() then ent:DrG_Send("DrG/PlayerSound", nb) end
       end
     end
   end)

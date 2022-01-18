@@ -23,6 +23,11 @@ end
 
 -- Registry --
 
+local DEFAULT_KILLICON = {
+  icon = "HUD/killicons/default",
+  color = Color(255, 80, 0, 255)
+}
+
 function DrGBase.AddNextbot(ENT)
   local class = string.Replace(ENT.Folder, "entities/", "")
   if ENT.PrintName == nil or ENT.Category == nil then return false end
@@ -61,16 +66,17 @@ function DrGBase.AddNextbot(ENT)
 
   -- killicon
   if CLIENT then
-    ENT.Killicon = ENT.Killicon or {
-      icon = "HUD/killicons/default",
-      color = Color(255, 80, 0, 255)
-    }
+    ENT.Killicon = ENT.Killicon or DEFAULT_KILLICON
     killicon.Add(class, ENT.Killicon.icon, ENT.Killicon.color)
   end
 
   -- register nextbot
-  local NPC = {Name = ENT.PrintName, Class = class, Category = ENT.Category}
   if ENT.Spawnable ~= false then
+    local NPC = {
+      Name = ENT.PrintName,
+      Class = class,
+      Category = ENT.Category
+    }
     list.Set("NPC", class, NPC)
     list.Set("DrG/Nextbots", class, NPC)
   end

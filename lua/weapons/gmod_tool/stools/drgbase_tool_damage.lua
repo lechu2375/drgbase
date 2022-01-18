@@ -1,11 +1,11 @@
-DrGBase.AddTool(function(TOOL, GetText, GetToolConVar)
+DrGBase.AddTool(function(TOOL, GetText, GetConVar)
 	TOOL.ClientConVar = {
 		["value"] = 0,
 		["type"] = DMG_GENERIC
 	}
 
 	function TOOL.BuildCPanel(panel)
-		local type = GetToolConVar("type")
+		local type = GetConVar("type")
 		panel:Help(GetText("desc"))
 		panel:NumSlider(GetText("damage"), "drgbase_tool_damage_value", 0, 500, 0)
 		local dlist = DrGBase.DListView({GetText("type"), GetText("enabled")})
@@ -40,8 +40,8 @@ DrGBase.AddTool(function(TOOL, GetText, GetToolConVar)
 	end
 
 	function TOOL:LeftClick(tr)
-		local ent = tr.Entity
-		if IsValid(ent) and SERVER then
+		if not IsValid(tr.Entity) then return false end
+		if SERVER then
 			local dmg = DamageInfo()
 			dmg:SetDamage(self:GetClientNumber("value"))
 			dmg:SetDamageType(self:GetClientNumber("type"))
@@ -50,7 +50,7 @@ DrGBase.AddTool(function(TOOL, GetText, GetToolConVar)
 			dmg:SetDamageForce(tr.Normal*self:GetClientNumber("value"))
 			dmg:SetDamagePosition(tr.HitPos)
 			dmg:SetReportedPosition(tr.HitPos)
-			ent:DispatchTraceAttack(dmg, tr)
+			tr.Entity:DispatchTraceAttack(dmg, tr)
 		end
 		return true
 	end
