@@ -1,4 +1,4 @@
--- Helpers --
+-- Util --
 
 local function GetNumFrames(self, seq)
   if isstring(sequence) then sequence = self:LookupSequence(sequence) end
@@ -31,6 +31,8 @@ local function GetActivityIDFromName(self, name)
   end
 end
 
+-- Misc --
+
 function ENT:IsAttack(seq)
   if isstring(seq) then seq = self:LookupSequence(seq) end
   if not isnumber(seq) or seq == -1 then return false end
@@ -47,6 +49,7 @@ end
 -- Anim events --
 
 ENT.DrG_AnimEvents = {}
+
 function ENT:AddAnimEventCycle(seq, cycles, event)
   if isstring(seq) then seq = self:LookupSequence(seq) end
   if not isnumber(seq) or seq == -1 then return false end
@@ -58,6 +61,7 @@ function ENT:AddAnimEventCycle(seq, cycles, event)
     table.insert(events[cycle], event)
   end
 end
+
 function ENT:AddAnimEvent(seq, frames, event)
   if isstring(seq) then seq = self:LookupSequence(seq) end
   if not isnumber(seq) or seq == -1 then return false end
@@ -70,6 +74,7 @@ function ENT:AddAnimEvent(seq, frames, event)
   end
   self:AddAnimEventCycle(seq, cycles, event)
 end
+
 function ENT:RemoveAnimEvents(seq)
   if isstring(seq) then seq = self:LookupSequence(seq) end
   if not isnumber(seq) or seq == -1 then return false end
@@ -135,7 +140,7 @@ if SERVER then
     return len
   end
 
-  -- Helpers --
+  -- Misc --
 
   function ENT:SetAttack(seq, attack)
     if isstring(seq) then seq = self:LookupSequence(seq) end
@@ -143,7 +148,7 @@ if SERVER then
     self:SetNW2Bool("DrG/IsAttack/"..seq, attack)
   end
 
-  -- PSAW and friends --
+  -- PlaySequenceAndWait --
 
   function ENT:PlaySequenceAndWait(seq, options, fn, ...)
     if istable(seq) then return self:PlaySequenceAndWait(seq[math.random(#seq)], options, fn, ...) end
@@ -159,6 +164,7 @@ if SERVER then
     ResetSequence(self, seq)
     self:SetPlaybackRate(options.rate)
     local gravity = self:GetGravity()
+    self.DrG_UsingPSAW = true
     local lastCycle = -1
     local res = nil
     while true do
@@ -191,11 +197,14 @@ if SERVER then
     end
     self:SetGravity(gravity)
     if not options.gravity then self:SetVelocity(Vector()) end
+    self.DrG_UsingPSAW = false
     return res
   end
+
   function ENT:PlayActivityAndWait(act, ...)
     return self:PlaySequenceAndWait(RandomSequence(self, act), ...)
   end
+
   function ENT:PlayAnimationAndWait(anim, ...)
     local kind = SequenceOrActivity(anim)
     if istable(anim) or kind == SEQUENCE then
@@ -204,6 +213,8 @@ if SERVER then
       return self:PlayActivityAndWait(anim, ...)
     else return false end
   end
+
+  -- PlaySequenceAndClimb --
 
   function ENT:PlaySequenceAndMove(seq, options, fn, ...)
     if istable(seq) then return self:PlaySequenceAndMove(seq[math.random(#seq)], options, fn, ...) end
@@ -253,9 +264,11 @@ if SERVER then
     if options.absolute then self:SetVelocity(Vector()) end
     return res
   end
+
   function ENT:PlayActivityAndMove(act, ...)
     return self:PlaySequenceAndMove(RandomSequence(self, act), ...)
   end
+
   function ENT:PlayAnimationAndMove(anim, ...)
     local kind = SequenceOrActivity(anim)
     if istable(anim) or kind == SEQUENCE then
@@ -264,6 +277,8 @@ if SERVER then
       return self:PlayActivityAndMove(anim, ...)
     else return false end
   end
+
+  -- PlaySequenceAndClimb --
 
   function ENT:PlaySequenceAndClimb(seq, options, ...)
     if isnumber(options) then return self:PlaySequenceAndClimb(seq, {height = options}, fn, ...) end
@@ -294,9 +309,11 @@ if SERVER then
       return self:PlaySequenceAndMove(seq, options, ...)
     end
   end
+
   function ENT:PlayActivityAndClimb(act, ...)
     return self:PlaySequenceAndClimb(GetSequences(self, act), ...)
   end
+
   function ENT:PlayAnimationAndClimb(anim, ...)
     local kind = SequenceOrActivity(anim)
     if istable(anim) or kind == SEQUENCE then
@@ -306,37 +323,26 @@ if SERVER then
     else return false end
   end
 
-  function ENT:PlaySequence(seq, options, fn, ...)
-    if istable(seq) then return self:PlaySequence(seq[math.random(#seq)], options, fn, ...) end
-    if isfunction(options) then return self:PlaySequence(seq, 1, options, fn, ...) end
-    if isnumber(options) then return self:PlaySequence(seq, {rate = options}, fn, ...) end
+  -- PlaySequence --
+
+  function ENT:PlaySequence(seq, options)
+    if istable(seq) then return self:PlaySequence(seq[math.random(#seq)], options) end
+    if isnumber(options) then return self:PlaySequence(seq, {rate = options}) end
     if isstring(seq) then seq = self:LookupSequence(seq) end
     if not isnumber(seq) or seq == -1 then return false end
     if not istable(options) then options = {} end
     if not isnumber(options.rate) then options.rate = 1 end
-    local args, n = table.DrG_Pack(...)
     local layer = self:AddGestureSequence(seq, true)
     if layer == -1 then return false end
     self:SetLayerPlaybackRate(layer, options.rate)
     self:SetLayerWeight(layer, 1)
-    self:ParallelCoroutine(function(self)
-      local lastCycle = -1
-      while self:GetLayerSequence(layer) == seq do
-        local cycle = self:GetLayerCycle(layer)
-        self:DrG_PlayAnimEvents(seq, cycle, math.max(lastCycle, 0))
-        lastCycle = cycle
-        if isfunction(fn) then
-          if n > 0 then fn(self, table.DrG_Unpack(args, n))
-          else fn(self, cycle, lastCyle) end
-        end
-        coroutine.yield()
-      end
-    end)
     return true, layer
   end
+
   function ENT:PlayActivity(act, ...)
     return self:PlaySequence(RandomSequence(self, act), ...)
   end
+
   function ENT:PlayAnimation(anim, ...)
     local kind = SequenceOrActivity(anim)
     if istable(anim) or kind == SEQUENCE then
@@ -348,40 +354,42 @@ if SERVER then
 
   -- Hooks --
 
-  function ENT:BodyUpdate()
-    self:BodyMoveXY({rate = false})
-  end
-
   function ENT:OnAnimChange(_old, _new) end
   function ENT:DoAnimChange(_old, _new) end
+
+  function ENT:BodyUpdate()
+    self:BodyMoveXY()
+  end
 
   -- Update --
 
   function ENT:UpdateAnimation(cancellable)
+    if not DrGBase.UpdateAnimations:GetBool() then return end
     local anim, rate = self:OnUpdateAnimation()
     local type = SequenceOrActivity(anim)
-    local validAnim = false
     if type == SEQUENCE then
       local current = self:GetSequence()
       local seq = self:LookupSequence(anim)
-      validAnim = seq ~= -1
-      if validAnim and (self:GetCycle() == 1 or seq ~= current) then
-        if cancellable and seq ~= current then self:DoAnimChange(current, seq) end
-        ResetSequence(self, seq, cancellable)
+      if seq ~= -1 then
+        if isnumber(rate) then self:SetPlaybackRate(rate) end
+        if seq ~= current or self:GetCycle() == 1 then
+          if cancellable and seq ~= current then self:DoAnimChange(current, seq) end
+          ResetSequence(self, seq)
+        end
       end
     elseif type == ACTIVITY then
       local current = self:GetActivity()
       local currentSeq = self:GetSequence()
       local seq = RandomSequence(self, anim)
       local act = self:GetSequenceActivity(seq)
-      validAnim = seq ~= -1
-      if validAnim and (self:GetCycle() == 1 or act ~= current) then
-        if cancellable and seq ~= currentSeq then self:DoAnimChange(currentSeq, seq) end
-        ResetSequence(self, seq, cancellable)
+      if seq ~= -1 then
+        if isnumber(rate) then self:SetPlaybackRate(rate) end
+        if act ~= current or self:GetCycle() == 1 then
+          if cancellable and seq ~= currentSeq then self:DoAnimChange(currentSeq, seq) end
+          ResetSequence(self, seq)
+        end
       end
     end
-    if validAnim and isnumber(rate) then self:SetPlaybackRate(rate) end
-    self:BodyMoveXY({frameadvance = false, direction = false})
   end
 
   function ENT:OnUpdateAnimation()
@@ -426,46 +434,17 @@ if SERVER then
   end
 
   local BodyMoveXY = nbMETA.BodyMoveXY
-  function nbMETA:BodyMoveXY(options, ...)
-    if self.IsDrGNextbot then
-      if self.IsDrGNextbotSprite then return end
-      if not istable(options) then options = {} end
-      if options.frameadvance ~= false then self:FrameAdvance() end
-      if self:IsMoving() then
-        if options.direction ~= false then
-          if self:LookupPoseParameter("move_x") ~= -1 and
-          self:LookupPoseParameter("move_y") ~= -1 then
-            local movement = self:GetMovement(true)
-            self:SetPoseParameter("move_x", movement.x)
-            self:SetPoseParameter("move_y", movement.y)
-          elseif self:LookupPoseParameter("move_yaw") ~= -1 then
-            local forward = self:GetForward()
-            local velocity = self:GetVelocity()
-            forward.z = 0
-            velocity.z = 0
-            self:SetPoseParameter("move_yaw", math.AngleDifference(
-              velocity:Angle().y, forward:Angle().y
-            ))
-          end
-        end
-        if options.rate ~= false then
-          local velocity = self:GetVelocity()
-          if self:IsOnGround() then
-            velocity.z = 0
-            if velocity:IsZero() then return end
-            local speed = velocity:Length()
-            local seqspeed = self:GetSequenceGroundSpeed(self:GetSequence())
-            if seqspeed ~= 0 then self:SetPlaybackRate(speed/seqspeed) end
-          elseif not velocity:IsZero() then
-            local speed = velocity:Length()
-            local ok, vec = self:GetSequenceMovement(self:GetSequence(), 0, 1)
-            if not ok or vec.z == 0 then return end
-            local seqspeed = (vec:Length()/self:SequenceDuration())*self:GetModelScale()
-            if seqspeed ~= 0 then self:SetPlaybackRate(speed/seqspeed) end
-          end
-        end
-      end
-    else return BodyMoveXY(self, options, ...) end
+  function nbMETA:BodyMoveXY(...)
+    if not self.IsDrGNextbot then return BodyMoveXY(self, ...) end
+    if self.DrG_UsingPSAW then return self:FrameAdvance() end
+    if self:LookupPoseParameter("move_yaw") ~= -1 then
+      local forward = self:GetForward()
+      local velocity = self:GetVelocity()
+      self:SetPoseParameter("move_yaw", math.AngleDifference(
+        velocity:Angle().y, forward:Angle().y
+      ))
+    end
+    return BodyMoveXY(self, ...)
   end
 
 end

@@ -18,15 +18,13 @@ end
 function ENT:CurrentNavArea()
   if not navmesh.IsLoaded() then return nil end
   if not self:GetGroundEntity():IsWorld() then return nil end
-  if not IsValid(self.DrG_CurrentNavArea) then self.DrG_CurrentNavArea = navmesh.GetNearestNavArea(self:GetPos(), 10) end
+  if self.DrG_CurrentNavArea == nil then self.DrG_CurrentNavArea = navmesh.GetNearestNavArea(self:GetPos(), 10) end
   if IsValid(self.DrG_CurrentNavArea) and self.DrG_CurrentNavArea:IsOverlapping(self:GetPos(), 10) then
     return self.DrG_CurrentNavArea
   else return nil end
 end
 function ENT:PreviousNavArea()
-  if not IsValid(self:CurrentNavArea()) then
-    return self.DrG_CurrentNavArea or nil
-  else return self.DrG_PreviousNavArea or nil end
+  return self.DrG_PreviousNavArea
 end
 
 function ENT:OnNavAreaChanged() end

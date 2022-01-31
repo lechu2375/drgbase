@@ -4,24 +4,37 @@ function ENT:IsAIDisabled()
   return GetConVar("ai_disabled"):GetBool() or DrGBase.AIDisabled:GetBool() or self:GetNW2Bool("DrG/AIDisabled")
 end
 
+function ENT:IsAIEnabled()
+  return not self:IsAIDisabled()
+end
+
 if SERVER then
 
+  -- Getters / setters --
+
   function ENT:SetAIDisabled(disabled)
-    self:SetNW2Bool("DrG/AIDisabled", tobool(disabled))
+    self:SetNW2Bool("DrG/AIDisabled", disabled)
   end
+
   function ENT:DisableAI()
     self:SetAIDisabled(true)
   end
+
   function ENT:EnableAI()
     self:SetAIDisabled(false)
   end
 
   -- Hooks --
 
-  function ENT:AIBehaviour()
-    if self:HasEnemy() then
-      self:DoHandleEnemy(self:GetEnemy(), self:GetEnemyDetectState())
-    else self:DoPassive() end
+  function ENT:DoAI()
+    while true do
+      if self:IsAIDisabled() then break end
+      if self:IsPossessed() then break end
+      if self:HasEnemy() then
+        self:DoHandleEnemy()
+      else self:DoPassive() end
+      self:YieldCoroutine(true)
+    end
   end
 
   local OnIdleDeprecation = DrGBase.Deprecation("ENT:OnIdle()", "ENT:DoPassive()")
@@ -54,6 +67,7 @@ if SERVER then
     end
     return true
   end
+
   function ENT:RoamAtRandom(min, max)
     if not DrGBase.AIRoam:GetBool() then return false end
     if not isnumber(min) then min, max = 1500, nil end
@@ -91,10 +105,17 @@ if SERVER then
   -- Misc
 
   function ENT:ShouldRun()
+    local area = self:CurrentNavArea()
+    if IsValid(area) then
+      if area:HasAttributes(NAV_MESH_WALK) then return false end
+      if area:HasAttributes(NAV_MESH_RUN) then return true end
+    end
     return self:GetEnemyDetectState() == DETECT_STATE_DETECTED
   end
+
   function ENT:ShouldCrouch()
-    return false
+    local area = self:CurrentNavArea()
+    return IsValid(area) and area:HasAttributes(NAV_MESH_CROUCH)
   end
 
   function ENT:ShouldDropWeapon()

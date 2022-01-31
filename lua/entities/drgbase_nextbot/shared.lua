@@ -168,6 +168,8 @@ DrGBase.RagdollsRemove = DrGBase.ConVar("drgbase_ragdolls_remove", "-1")
 DrGBase.RagdollsFadeOut = DrGBase.ConVar("drgbase_ragdolls_fadeout", "3")
 DrGBase.RagdollsDisableCollisions = DrGBase.ConVar("drgbase_ragdolls_disable_collisions", "0")
 
+DrGBase.UpdateAnimations = DrGBase.ConVar("drgbase_animations_update", "1")
+
 -- Initialize --
 
 function ENT:DrG_PreInitialize()
@@ -195,10 +197,7 @@ function ENT:DrG_PreInitialize()
     -- collisions
     self:SetCollisionGroup(COLLISION_GROUP_NPC)
     if isvector(self.CollisionBounds) then
-      self:SetCollisionBounds(
-        Vector(-self.CollisionBounds.x, -self.CollisionBounds.y, 0),
-        Vector(self.CollisionBounds.x, self.CollisionBounds.y, self.CollisionBounds.z)
-      )
+      self:SetCollisionBoundsSimple(self.CollisionBounds)
     else self:SetCollisionBounds(self:GetModelBounds()) end
     -- physics
     self:PhysicsInitShadow()
@@ -220,14 +219,14 @@ function ENT:DrG_PreInitialize()
     -- misc
     self:SetBloodColor(self.BloodColor)
     self:SetUseType(SIMPLE_USE)
-    self:JoinFactions(self.Factions)
+    self:DrG_InitFactions()
     self:AddCallback("OnAngleChange", function(self, ang)
       self:OnAngleChange(ang)
     end)
     self.VJ_AddEntityToSNPCAttackList = true
     self.vFireIsCharacter = true
     -- parallel coroutines
-    local function UpdateEntity(ent)
+    --[[local function UpdateEntity(ent)
       self:UpdateSight(ent)
       coroutine.yield()
     end
@@ -277,11 +276,11 @@ function ENT:DrG_PreInitialize()
         self:SetHealth(math.Clamp(health + regen, 1, maxHealth))
         coroutine.wait(1)
       end
-    end)
+    end)]]
   else self:SetIK(true) end
   self.DrG_PreviousAngle = self:GetAngles()
   self:AddFlags(FL_OBJECT + FL_NPC)
-  table.insert(DrG_Nextbots, self)
+  list.Set("DrG/NextbotCache", self, true)
 end
 function ENT:DrG_PostInitialize()
   if SERVER then self:InitRelationships() end
@@ -289,7 +288,7 @@ end
 
 local CustomInitializeDeprecation = DrGBase.Deprecation("ENT:CustomInitialize()", "ENT:Initialize()")
 function ENT:Initialize(...)
-  if isfunction(self.CustomInitialize) then -- backwards compatibility
+  if isfunction(self.CustomInitialize) then
     CustomInitializeDeprecation()
     return self:CustomInitialize(...)
   end
@@ -326,17 +325,18 @@ function ENT:DrG_PreThink(...)
       self:OnEntitySightKept(ply)
     else self:OnEntityNotInSight(ply) end
   end
-  -- possessiona
+  -- possession
   if self:IsPossessed() then
+    local ply = self:GetPossessor()
     self:PossessionThink(...)
-    self:PossessionBehaviour()
+    self:OnPossessionBinds(ply:DrG_Binds())
   end
 end
 function ENT:PossessionThink() end
 
 local CustomThinkDeprecation = DrGBase.Deprecation("ENT:CustomThink()", "ENT:Think()")
 function ENT:Think(...)
-  if isfunction(self.CustomThink) then -- backwards compatibility
+  if isfunction(self.CustomThink) then
     CustomThinkDeprecation()
     return self:CustomThink(...)
   end
@@ -347,7 +347,7 @@ end
 function ENT:OnRemove() end
 function ENT:DrG_OnRemove()
   if SERVER and self:IsPossessed() then self:StopPossession() end
-  table.RemoveByValue(DrG_Nextbots, self)
+  list.Set("DrG/NextbotCache", self, nil)
 end
 
 if SERVER then
@@ -372,7 +372,7 @@ if SERVER then
       nb.DrG_RelationshipCacheDetected[D_LI][ent] = nil
       nb.DrG_RelationshipCacheDetected[D_HT][ent] = nil
       nb.DrG_RelationshipCacheDetected[D_FR][ent] = nil
-      nb.DrG_DefinedRelationships["Entity"][ent] = nil
+      nb.DrG_EntityRelationships[ent] = nil
       nb.DrG_IgnoredEntities[ent] = nil
       if nb:GetEnemy() == ent then
         nb:UpdateEnemy()
@@ -385,65 +385,48 @@ if SERVER then
   ENT.DrG_ThrReacts = {}
   ENT.DrG_ThrCalls = {}
 
-  local function RunBehaviour(self)
-    while true do
-      if self:IsPossessed() then
-        self:PossessionBehaviour()
-      elseif not self:IsAIDisabled() then
-        self:AIBehaviour()
-      end
-      self:YieldCoroutine(true)
-    end
+  function ENT:InCoroutine()
+    return self.BehaveThread ~= nil and coroutine.status(self.BehaveThread) == "running"
   end
 
   function ENT:BehaveStart()
     self.BehaveThread = coroutine.create(function()
       self:DoSpawn()
-      RunBehaviour(self)
+      while true do
+        if self:IsPossessed() then self:DoPossession()
+        elseif self:IsAIEnabled() then self:DoAI() end
+        self:YieldCoroutine(true)
+      end
     end)
-  end
-  function ENT:BehaveRestart()
-    self.BehaveThread = coroutine.create(function()
-      RunBehaviour(self)
+    self.DrG_UpdateThread = coroutine.create(function()
+      while true do
+        for _, ent in ipairs(ents.GetAll()) do
+          if not IsValid(ent) then continue end
+          if ent == self then continue end
+          if self:IsAlly(ent) or self:IsHostile(ent)
+          or self:IsAbleToSeeCached(ent) then
+            self:UpdateSight(ent)
+            coroutine.yield()
+          end
+        end
+        self:UpdateEnemy()
+        coroutine.yield()
+      end
     end)
   end
 
   function ENT:BehaveUpdate()
-    if self.BehaveThread then
-      if coroutine.status(self.BehaveThread) ~= "dead" then
-        local ok, args = coroutine.resume(self.BehaveThread)
-        if not ok then
-          ErrorNoHalt(self, " Error: ", args, "\n")
-          if self:OnError(args) then
-            if isfunction(self.DoError) then
-              self.BehaveThread = coroutine.create(function()
-                self:DoError(args)
-                RunBehaviour(self)
-              end)
-            else self:BehaveRestart() end
-          end
-        end
-      else self.BehaveThread = nil end
-    end
-    local dead = {}
-    for thr in pairs(self.DrG_ThrParallel) do
-      local ok, args = coroutine.resume(thr)
-      if coroutine.status(thr) == "dead" then
-        table.insert(dead, thr)
-        if not ok then
-          ErrorNoHalt(self, " Parallel Error: ", args, "\n")
-          self:OnParallelError(args)
-        end
-      end
-    end
-    for _, thr in ipairs(dead) do
-      self.DrG_ThrParallel[thr] = nil
-    end
+    if self.BehaveThread
+    and coroutine.status(self.BehaveThread) ~= "dead" then
+      local ok, args = coroutine.resume(self.BehaveThread)
+      if not ok then ErrorNoHalt(self, " Error: ", args, "\n") end
+    else self.BehaveThread = nil end
+    if self.DrG_UpdateThread
+    and coroutine.status(self.DrG_UpdateThread) ~= "dead" then
+      local ok, args = coroutine.resume(self.DrG_UpdateThread)
+      if not ok then ErrorNoHalt(self, " Error: ", args, "\n") end
+    else self.DrG_UpdateThread = nil end
   end
-  function ENT:OnError()
-    return self.RestartOnError
-  end
-  function ENT:OnParallelError() end
 
   function ENT:YieldCoroutine(cancellable)
     if cancellable then
@@ -458,6 +441,7 @@ if SERVER then
       return self:YieldNoUpdate(false)
     end
   end
+
   function ENT:YieldNoUpdate(cancellable)
     if cancellable then
       local now = CurTime()
@@ -507,58 +491,50 @@ if SERVER then
     self.DrG_ResumeCoroutine = nil
     return false
   end
+
   function ENT:ResumeCoroutine()
-    if self.DrG_ResumeCoroutine ~= false then return end
-    self.DrG_ResumeCoroutine = true
+    if self.DrG_ResumeCoroutine == false then
+      self.DrG_ResumeCoroutine = true
+    end
   end
 
   function ENT:ReactInCoroutine(fn, arg1, ...)
     if not isfunction(fn) then return end
-    if not self:InCoroutine() then
+    if self:InCoroutine() then
+      fn(self, arg1, ...)
+    else
       local args, n = table.DrG_Pack(...)
       table.insert(self.DrG_ThrReacts, function(self)
         if isentity(arg1) and not IsValid(arg1) then return end
         fn(self, arg1, table.DrG_Unpack(args, n))
       end)
-    else fn(self, arg1, ...) end
+    end
   end
 
   function ENT:CallInCoroutine(fn, ...)
     if not isfunction(fn) then return end
-    local args, n = table.DrG_Pack(...)
-    if not self:InCoroutine() then
-      local now = CurTime()
+    if self:InCoroutine() then
+      fn(self, ...)
+    else
+      local args, n = table.DrG_Pack(...)
       table.insert(self.DrG_ThrCalls, function(self)
-        if n > 0 then fn(self, table.DrG_Unpack(args, n))
-        else fn(self, CurTime() - now) end
+        fn(self, table.DrG_Unpack(args, n))
       end)
-    elseif n > 0 then fn(self, ...)
-    else fn(self, 0) end
+    end
   end
 
   function ENT:OverrideCoroutine(fn, ...)
     if not isfunction(fn) then return end
-    if not self:InCoroutine() then
+    if self:InCoroutine() then
+      fn(self, ...)
+    else
       local args, n = table.DrG_Pack(...)
       local BehaveThread = self.BehaveThread
       self.BehaveThread = coroutine.create(function()
         fn(self, table.DrG_Unpack(args, n))
         self.BehaveThread = BehaveThread
       end)
-    else fn(self, ...) end
-  end
-
-  ENT.DrG_ThrParallel = {}
-  function ENT:ParallelCoroutine(fn, ...)
-    if not isfunction(fn) then return end
-    local args, n = table.DrG_Pack(...)
-    self.DrG_ThrParallel[coroutine.create(function()
-      fn(self, table.DrG_Unpack(args, n))
-    end)] = true
-  end
-
-  function ENT:InCoroutine()
-    return self.BehaveThread ~= nil and coroutine.status(self.BehaveThread) == "running"
+    end
   end
 
   -- SLVBase compatibility --
@@ -570,8 +546,14 @@ if SERVER then
 
   function ENT:DoThink() end
   function ENT:DoPossessionThink() end
-  function ENT:DoSpawn(...) return self:OnSpawn(...) end
-  function ENT:OnSpawn() end
+
+  local OnSpawnDeprecation = DrGBase.Deprecation("ENT:OnSpawn()", "ENT:DoSpawn()")
+  function ENT:DoSpawn()
+    if isfunction(self.OnSpawn) then
+      OnSpawnDeprecation()
+      self:OnSpawn()
+    end
+  end
 
 else
 
@@ -584,6 +566,7 @@ else
   DrGBase.PossessionBindNextView = DrGBase.SharedClientConVar("drgbase_possession_bind_next_view", KEY_V)
 
   DrGBase.DebugSight = DrGBase.ClientConVar("drgbase_debug_sight", "0")
+  DrGBase.DebugBounds = DrGBase.ClientConVar("drgbase_debug_bounds", "0")
 
   -- Draw --
 
@@ -595,16 +578,21 @@ else
       render.DrawLine(self:EyePos(), ply:WorldSpaceCenter(), clr, true)
     end
   end
-  function ENT:DrG_PostDraw()
-    if not DrGBase.DebugEnabled() then return end
-  end
 
   local CustomDrawDeprecation = DrGBase.Deprecation("ENT:CustomDraw()", "ENT:Draw()")
   function ENT:Draw(...)
     self:DrawModel()
-    if isfunction(self.CustomDraw) then -- backwards compatibility
+    if isfunction(self.CustomDraw) then
       CustomDrawDeprecation()
-      return self:CustomDraw(...)
+      self:CustomDraw(...)
+    end
+  end
+
+  function ENT:DrG_PostDraw()
+    if not DrGBase.DebugEnabled() then return end
+    if DrGBase.DebugBounds:GetBool() then
+      local min, max = self:GetCollisionBounds()
+      render.DrawWireframeBox(self:GetPos(), Angle(0, 0, 0), min, max, DrGBase.CLR_WHITE, true)
     end
   end
 

@@ -1,14 +1,12 @@
-DrGBase.AddTool(function(TOOL, GetText, GetConVar)
-	TOOL.ClientConVar = {
-		["value"] = 0,
-		["type"] = DMG_GENERIC
-	}
+DrGBase.CreateTool(function(GetText, GetConVar)
+	TOOL.ClientConVar = { value = 0, type = DMG_GENERIC }
 
 	function TOOL.BuildCPanel(panel)
 		local type = GetConVar("type")
 		panel:Help(GetText("desc"))
+		panel:Help(GetText("0"))
 		panel:NumSlider(GetText("damage"), "drgbase_tool_damage_value", 0, 500, 0)
-		local dlist = DrGBase.DListView({GetText("type"), GetText("enabled")})
+		local dlist = DrGBase.DListView({ GetText("type"), GetText("enabled") })
 		function AddDamageType(name, value)
 			dlist:AddLine(GetText(name), GetText(bit.band(type:GetInt(), value) ~= 0 and "yes" or "no"), value)
 		end
@@ -62,4 +60,5 @@ DrGBase.AddTool(function(TOOL, GetText, GetConVar)
 			Entity = owner, HitPos = owner:GetPos()
 		})
 	end
+
 end)

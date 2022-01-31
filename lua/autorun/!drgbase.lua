@@ -3,15 +3,15 @@ DrGBase.Version = "2.0"
 
 -- Colors --
 
-DrGBase.CLR_WHITE = Color(255, 255, 255)
-DrGBase.CLR_GREEN = Color(150, 255, 40)
+DrGBase.CLR_WHITE = Color(238, 238, 255)
+DrGBase.CLR_SOFT_WHITE = Color(204, 204, 221)
+DrGBase.CLR_LIGHT_GRAY = Color(153, 153, 170)
+DrGBase.CLR_DARK_GRAY = Color(68, 68, 85)
+DrGBase.CLR_GREEN = Color(125, 220, 30)
 DrGBase.CLR_RED = Color(255, 50, 50)
-DrGBase.CLR_CYAN = Color(0, 200, 200)
-DrGBase.CLR_PURPLE = Color(220, 40, 115)
-DrGBase.CLR_BLUE = Color(50, 100, 255)
-DrGBase.CLR_ORANGE = Color(255, 150, 30)
-DrGBase.CLR_DARKGRAY = Color(20, 20, 20)
-DrGBase.CLR_LIGHTGRAY = Color(200, 200, 200)
+DrGBase.CLR_BLUE = Color(40, 150, 255)
+DrGBase.CLR_ORANGE = Color(255, 150, 40)
+DrGBase.CLR_PURPLE = Color(170, 40, 120)
 
 local function Transparent(color)
   color = color:ToVector():ToColor()
@@ -20,14 +20,14 @@ local function Transparent(color)
 end
 
 DrGBase.CLR_WHITE_TR = Transparent(DrGBase.CLR_WHITE)
+DrGBase.CLR_SOFT_WHITE_TR = Transparent(DrGBase.CLR_SOFT_WHITE)
+DrGBase.CLR_LIGHT_GRAY_TR = Transparent(DrGBase.CLR_LIGHT_GRAY)
+DrGBase.CLR_DARK_GRAY_TR = Transparent(DrGBase.CLR_DARK_GRAY)
 DrGBase.CLR_GREEN_TR = Transparent(DrGBase.CLR_GREEN)
 DrGBase.CLR_RED_TR = Transparent(DrGBase.CLR_RED)
-DrGBase.CLR_CYAN_TR = Transparent(DrGBase.CLR_CYAN)
-DrGBase.CLR_PURPLE_TR = Transparent(DrGBase.CLR_PURPLE)
 DrGBase.CLR_BLUE_TR = Transparent(DrGBase.CLR_BLUE)
 DrGBase.CLR_ORANGE_TR = Transparent(DrGBase.CLR_ORANGE)
-DrGBase.CLR_DARKGRAY_TR = Transparent(DrGBase.CLR_DARKGRAY)
-DrGBase.CLR_LIGHTGRAY_TR = Transparent(DrGBase.CLR_LIGHTGRAY)
+DrGBase.CLR_PURPLE_TR = Transparent(DrGBase.CLR_PURPLE)
 
 -- Print --
 
@@ -43,14 +43,14 @@ function DrGBase.Print(msg, options)
     net.Start("DrG/ChatPrint")
     net.WriteString(msg)
     net.WriteBool(tobool(options.chat))
-    net.WriteColor(options.color or DrGBase.CLR_CYAN)
+    net.WriteColor(options.color or DrGBase.CLR_BLUE)
     if ply then net.Send(ply)
     else net.Broadcast() end
     return true
   else
     local color = options.color
     if not color then
-      if SERVER then color = DrGBase.CLR_CYAN
+      if SERVER then color = DrGBase.CLR_BLUE
       elseif CLIENT then color = DrGBase.CLR_ORANGE
       else color = DrGBase.CLR_GREEN end
     end
@@ -89,17 +89,22 @@ end
 function DrGBase.ConVar(name, value, ...)
   return CreateConVar(name, value, {FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_REPLICATED}, ...)
 end
+
 if SERVER then
+
   function DrGBase.ServerConVar(name, value, ...)
-    return CreateConVar(name, value, {FCVAR_ARCHIVE}, ...)
+    return CreateConVar(name, value, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, ...)
   end
+
 else
+
   function DrGBase.ClientConVar(name, value, ...)
     return CreateConVar(name, value, {FCVAR_ARCHIVE}, ...)
   end
   function DrGBase.SharedClientConVar(name, value, ...)
     return CreateConVar(name, value, {FCVAR_ARCHIVE, FCVAR_USERINFO}, ...)
   end
+
 end
 
 local EnableDebug = DrGBase.ConVar("drgbase_debug", "0")
@@ -346,4 +351,8 @@ DrGBase.IncludeFolder("drgbase/autorun/client")
 
 -- Binary module --
 
-require("drgbase")
+if SERVER then
+  local ok = pcall(require, "drgbase")
+  if ok then DrGBase.Print("Binary module loaded")
+  else DrGBase.Print("Binary module not found") end
+end

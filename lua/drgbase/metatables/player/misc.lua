@@ -8,6 +8,9 @@ end
 function plyMETA:DrG_IsPossessing()
   return IsValid(self:DrG_GetPossessing())
 end
+function plyMETA:DrG_GetPossessingOrSelf()
+  return self:DrG_IsPossessing() and self:DrG_GetPossessing() or self
+end
 
 local PossessingDeprecation = DrGBase.Deprecation("ply:DrG_Possessing()", "ply:DrG_GetPossessing()")
 function plyMETA:DrG_Possessing()
@@ -62,6 +65,17 @@ function plyMETA:DrG_ButtonReleased(button)
   local data = self.DrG_ButtonsDown[button]
   if data == nil then return false end
   return tobool(not data.down and data.recent)
+end
+
+-- Misc --
+
+function plyMETA:DrG_GetVehicle()
+  local veh = self:GetVehicle()
+  if not IsValid(veh) then return NULL end
+  while IsValid(veh:GetParent()) do
+    veh = veh:GetParent()
+  end
+  return veh
 end
 
 if SERVER then

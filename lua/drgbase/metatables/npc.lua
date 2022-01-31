@@ -4,7 +4,11 @@ if SERVER then
 
   function npcMETA:DrG_SetRelationship(ent, disp)
     if not IsValid(ent) then return end
-    if not self.CPTBase_NPC then
+    if self.CPTBase_NPC then
+      self:AddEntityRelationship(ent, disp, 99)
+    elseif self.IsSLVBaseNPC then
+      self:AddEntityDisposition(ent, disp)
+    else
       self.DrG_RelPrios = self.DrG_RelPrios or {}
       if not self.DrG_RelPrios[ent] then self.DrG_RelPrios[ent] = 0 end
       self.DrG_RelPrios[ent] = self.DrG_RelPrios[ent]+1
@@ -28,7 +32,7 @@ if SERVER then
           end
         else table.RemoveByValue(self.VJ_AddCertainEntityAsFriendly, ent) end
       end
-    else self:AddEntityRelationship(ent, disp, 99) end
+    end
   end
 
 end

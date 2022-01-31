@@ -14,7 +14,7 @@ ENT.RagdollOnDeath = true
 ENT.OnDamageSounds = {"NPC_Antlion.Pain"}
 
 -- Stats --
-ENT.SpawnHealth = 40
+ENT.SpawnHealth = 30
 
 -- AI --
 ENT.RangeAttackRange = 0
@@ -52,7 +52,6 @@ if SERVER then
 
   function ENT:Initialize()
     self:SetClassRelationship("prop_thumper", D_FR, 1)
-    print(#DrGBase.GetNextbots())
   end
 
   -- AI --
@@ -71,9 +70,9 @@ if SERVER then
 
   function ENT:DoMeleeAttack()
     local rand = math.random(1, 6)
-    if rand == 7 then self:PlaySequenceAndMove("pounce", true)
-    elseif rand == 8 then self:PlaySequenceAndMove("pounce2", true)
-    else self:PlaySequenceAndMove("attack"..rand, true) end
+    if rand == 7 then self:PlaySequenceAndMove("pounce", true, self.FaceTowardsEnemy)
+    elseif rand == 8 then self:PlaySequenceAndMove("pounce2", true, self.FaceTowardsEnemy)
+    else self:PlaySequenceAndMove("attack"..rand, true, self.FaceTowardsEnemy) end
   end
 
   -- Possession --
@@ -88,17 +87,32 @@ if SERVER then
 
   -- Misc --
 
-  function ENT:OnAnimChange(old, new)
-    local glide = self:LookupSequence("jump_glide")
-    if glide == new then
-      self:SetBodygroup(1, 1)
-    elseif glide == old then
-      self:SetBodygroup(1, 0)
+  function ENT:OpenWings()
+    self:SetBodygroup(1, 1)
+    self.WingsOpen = self:StartLoopingSound("NPC_Antlion.WingsOpen")
+  end
+
+  function ENT:CloseWings()
+    self:SetBodygroup(1, 0)
+    if isnumber(self.WingsOpen) then
+      self:StopLoopingSound(self.WingsOpen)
     end
   end
 
+  function ENT:OnAnimChange(old, new)
+    local glide = self:LookupSequence("jump_glide")
+    if glide == new then
+      self:OpenWings()
+    elseif glide == old then
+      self:CloseWings()
+    end
+  end
+
+  function ENT:OnRemove()
+    self:CloseWings()
+  end
+
   function ENT:DoLandOnGround()
-    print("a")
     self:PlaySequenceAndMove("jump_stop")
   end
 
@@ -123,7 +137,7 @@ if SERVER then
 
   -- Bugbaits --
 
-  function ENT:CustomRelationship(ent)
+  function ENT:OnUpdateRelationship(ent)
     if ent:IsPlayer() or ent.IsDrGNextbot then
       local weap = ent:GetActiveWeapon()
       if IsValid(weap) and weap:GetClass() == "weapon_bugbait" then
@@ -152,8 +166,7 @@ if SERVER then
         filter = bugbait
       })
       for nb in DrGBase.NextbotIterator("npc_drg_antlion") do
-        if IsValid(tr.Entity) then nb:DetectEntity(tr.Entity)
-        else nb:CallInCoroutine(nb.RoamTo, bugbait:GetPos()) end
+        if IsValid(tr.Entity) then nb:DetectEntity(tr.Entity) end
       end
     end
   end)
@@ -165,6 +178,7 @@ if SERVER then
       if self:GetCycle() > 0.3 then
         local hit = self:MeleeAttack({
           damage = 5, range = 50, type = DMG_SLASH,
+          force = Vector(100, 0, 0),
           viewpunch = Angle(10, 0, 0)
         })
         if #hit > 0 then self:EmitSound("NPC_Antlion.MeleeAttack") end

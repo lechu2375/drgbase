@@ -1,41 +1,5 @@
 if not istable(ENT) then return end
 
--- Print --
-
-function ENT:PrintPoseParameters()
-  for i = 0, (self:GetNumPoseParameters()-1) do
-    local min, max = self:GetPoseParameterRange(i)
-    print(self:GetPoseParameterName(i).." "..min.." / "..max)
-  end
-end
-function ENT:PrintAnimations()
-  for i, seq in pairs(self:GetSequenceList()) do
-    local act = self:GetSequenceActivity(i)
-    if act ~= -1 then
-      print(i.." => "..seq.." / "..act.." => "..self:GetSequenceActivityName(i))
-    else
-      print(i.." => "..seq.." / -1")
-    end
-  end
-end
-function ENT:PrintBones()
-  for i = 0, (self:GetBoneCount()-1) do
-    local bonename = self:GetBoneName(i)
-    if bonename == nil then continue end
-    print(i.." => "..bonename)
-  end
-end
-function ENT:PrintAttachments()
-  for _, attach in ipairs(self:GetAttachments()) do
-    print(attach.id.." => "..attach.name)
-  end
-end
-function ENT:PrintBodygroups()
-  for _, group in ipairs(self:GetBodyGroups()) do
-    print(group.id.." => "..group.name.." ("..group.num.." subgroups)")
-  end
-end
-
 -- Timers --
 
 function ENT:Timer(...)

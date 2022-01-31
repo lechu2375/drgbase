@@ -1,5 +1,3 @@
--- Misc --
-
 local RANGE_MELEE = {
   ["melee"] = true,
   ["melee2"] = true,
@@ -12,50 +10,7 @@ function DrGBase.IsMeleeWeapon(weapon)
   return weapon.DrGBase_Melee or string.find(holdType, "melee") ~= nil
 end
 
-function DrGBase.OneTimeMessage(msg, options)
-  local printed = false
-  return function()
-    if not printed and GetConVar("developer"):GetBool() then
-      DrGBase.Print(msg, options)
-      printed = true
-    end
-  end
-end
-function DrGBase.OneTimeError(err)
-  local printed = false
-  return function()
-    if not printed and GetConVar("developer"):GetBool() then
-      ErrorNoHalt(err.."\n")
-      printed = true
-    end
-  end
-end
-function DrGBase.Deprecation(old, new)
-  return DrGBase.OneTimeError("[DrGBase] Deprecation warning: '"..old.."' is deprecated, you should use '"..new.."' instead")
-end
-function DrGBase.Deprecated(old, new, fn)
-  local deprecation = DrGBase.Deprecation(old, new)
-  return function(...)
-    deprecation()
-    return fn(...)
-  end
-end
-
-function DrGBase.AddTool(fn)
-  local TOOL = TOOL
-  TOOL.Name = "#tool."..TOOL.Mode..".name"
-  TOOL.Tab = "drgbase"
-  TOOL.Category = "tools"
-  fn(TOOL, function(placeholder, ...)
-    return DrGBase.GetText("tool."..TOOL.Mode.."."..placeholder, ...)
-  end, function(name)
-    return GetConVar(TOOL.Mode.."_"..name)
-  end)
-end
-
 if SERVER then
-
-  -- Misc --
 
   function DrGBase.CreateProjectile(model, binds)
     local proj = ents.Create("proj_drg_default")
@@ -72,19 +27,6 @@ if SERVER then
     if isfunction(binds.Remove) then proj.OnRemove = binds.Remove end
     proj:Spawn()
     return proj
-  end
-
-else
-
-  -- Misc --
-
-  local MATERIALS = {}
-  function DrGBase.Material(name, ...)
-    if not MATERIALS[name] then
-      local material = Material(name, ...)
-      MATERIALS[name] = material
-      return material
-    else return MATERIALS[name] end
   end
 
 end

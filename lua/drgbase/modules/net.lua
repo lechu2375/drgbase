@@ -38,7 +38,7 @@ if SERVER then
     net.DrG_WriteMessage(...)
     return net.Send(self)
   end
-  function net.DrG_BroadCast(name, ...)
+  function net.DrG_Broadcast(name, ...)
     net.Start(name)
     net.DrG_WriteMessage(...)
     return net.Broadcast()
@@ -85,6 +85,7 @@ net.Receive("DrG/NetCallbackReq", function(_len, ply)
   if SERVER then net.Send(ply)
   else net.SendToServer() end
 end)
+
 net.Receive("DrG/NetCallbackRes", function()
   local id = net.ReadInt(32)
   local args, n = net.DrG_ReadMessage()

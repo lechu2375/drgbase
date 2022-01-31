@@ -32,28 +32,16 @@ end
 function ENT:IsMovingLeft()
   return math.Round(self:GetMovement().y, 2) < 0
 end
-function ENT:IsMovingForwardLeft()
-  return self:IsMovingForward() and self:IsMovingLeft()
-end
-function ENT:IsMovingForwardRight()
-  return self:IsMovingForward() and self:IsMovingRight()
-end
-function ENT:IsMovingBackwardLeft()
-  return self:IsMovingBackward() and self:IsMovingLeft()
-end
-function ENT:IsMovingBackwardRight()
-  return self:IsMovingBackward() and self:IsMovingRight()
-end
 
-function ENT:IsTurning(prec)
-  return math.Round(self:GetAngles().y, prec) ~= math.Round(self.DrG_PreviousAngle.y, prec)
+function ENT:IsTurning()
+  return math.Round(self:GetAngles().y) ~= math.Round(self.DrG_PreviousAngle.y)
 end
-function ENT:IsTurningLeft(prec)
-  if not self:IsTurning(prec) then return false end
+function ENT:IsTurningLeft()
+  if not self:IsTurning() then return false end
   return math.AngleDifference(self:GetAngles().y, self.DrG_PreviousAngle.y) > 0
 end
-function ENT:IsTurningRight(prec)
-  if not self:IsTurning(prec) then return false end
+function ENT:IsTurningRight()
+  if not self:IsTurning() then return false end
   return math.AngleDifference(self:GetAngles().y, self.DrG_PreviousAngle.y) < 0
 end
 
@@ -84,19 +72,45 @@ if SERVER then
     self.loco:SetDesiredSpeed(speed*DrGBase.SpeedMultiplier:GetFloat()*self:GetModelScale())
   end
 
-  function ENT:IsRunning()
+  -- Running --
+
+  local function IsRunning(self)
     if not self:IsMoving() then return false end
     if self:IsPossessed() then
       return self:GetPossessor():KeyDown(IN_SPEED)
     else return self:ShouldRun() end
   end
 
-  function ENT:IsCrouching()
+  function ENT:IsRunning()
+    local running = IsRunning(self)
+    if running and not self.DrG_Running then self:OnStartRunning() end
+    if not running and self.DrG_Running then self:OnStopRunning() end
+    self.DrG_Running = running
+    return running
+  end
+
+  function ENT:OnStartRunning() end
+  function ENT:OnStopRunning() end
+
+  -- Crouching --
+
+  local function IsCrouching(self)
     if not self.EnableCrouching then return false end
     if self:IsPossessed() then
       return self:GetPossessor():KeyDown(IN_DUCK)
     else return self:ShouldCrouch() end
   end
+
+  function ENT:IsCrouching()
+    local crouching = IsCrouching(self)
+    if crouching and not self.DrG_Crouching then self:OnStartCrouching() end
+    if not crouching and self.DrG_Crouching then self:OnStopCrouching() end
+    self.DrG_Crouching = crouching
+    return crouching
+  end
+
+  function ENT:OnStartCrouching() end
+  function ENT:OnStopCrouching() end
 
   -- Movements --
 
@@ -104,22 +118,27 @@ if SERVER then
     if isentity(pos) then pos = pos:GetPos() end
     self.loco:Approach(pos, nb or 1)
   end
+
   function ENT:FaceTowards(pos)
     if isentity(pos) then pos = pos:GetPos() end
     self.loco:FaceTowards(pos)
   end
+
   function ENT:FaceTowardsEnemy()
     if not self:HasEnemy() then return end
     self:FaceTowards(self:GetEnemy())
   end
+
   function ENT:FaceTowardsVelocity()
     self:FaceTowards(self:GetPos() + self:GetVelocity())
   end
+
   function ENT:FaceInstant(pos)
     if isentity(pos) then pos = pos:GetPos() end
     local angle = (pos - self:GetPos()):Angle()
     self:SetAngles(Angle(0, angle.y, 0))
   end
+
   function ENT:FaceTo(toface)
     while true do
       local pos = toface
@@ -139,6 +158,7 @@ if SERVER then
     self:FaceTowards(pos)
     self:Approach(pos)
   end
+
   function ENT:MoveAwayFrom(pos, face)
     if isentity(pos) then pos = pos:GetPos() end
     local away = self:GetPos()*2 - pos
@@ -151,12 +171,15 @@ if SERVER then
   function ENT:MoveForward()
     self:Approach(self:GetPos() + self:GetForward())
   end
+
   function ENT:MoveBackward()
     self:Approach(self:GetPos() - self:GetForward())
   end
+
   function ENT:MoveRight()
     self:Approach(self:GetPos() + self:GetRight())
   end
+
   function ENT:MoveLeft()
     self:Approach(self:GetPos() - self:GetRight())
   end
@@ -170,6 +193,7 @@ if SERVER then
       return path:GetEnd():DistToSqr(pos) > path:GetGoalTolerance()^2
     else return false end
   end
+
   function ENT:FollowPath(pos, options)
     if isentity(pos) then
       if not IsValid(pos) then return "unreachable" end
@@ -226,7 +250,7 @@ if SERVER then
   end
 
   function ENT:GoTo(pos, options, fn, ...)
-    if isfunction(options) then return self:GoTo(pos, nil, options, ...) end
+    if isfunction(options) then return self:GoTo(pos, nil, options, fn, ...) end
     if isentity(pos) then pos = pos:GetPos() end
     while true do
       local res = self:FollowPath(pos, options)
@@ -241,7 +265,7 @@ if SERVER then
   end
 
   function ENT:ChaseEntity(ent, options, fn, ...)
-    if isfunction(options) then return self:ChaseEntity(ent, nil, options, ...) end
+    if isfunction(options) then return self:ChaseEntity(ent, nil, options, fn, ...) end
     if not isentity(ent) then return false end
     while IsValid(ent) do
       local res = self:FollowPath(ent, options)

@@ -2,12 +2,12 @@ if SERVER then
 
   -- Water level --
 
+  function ENT:OnWaterLevelChanged() end
   hook.Add("OnEntityWaterLevelChanged", "DrG/NextbotWaterLevel", function(ent, old, new)
     if not ent.IsDrGNextbot then return end
     ent:OnWaterLevelChanged(old, new)
     ent:ReactInCoroutine(ent.DoWaterLevelChanged, old, new)
   end)
-  function ENT:OnWaterLevelChanged() end
 
   -- Fire --
 
@@ -38,6 +38,8 @@ if SERVER then
   function ENT:DrG_Use(...)
     self:ReactInCoroutine(self.DoUse, ...)
   end
+
+  function ENT:Contact() end
   function ENT:DrG_OnContact(...)
     self:ReactInCoroutine(self.DoContact, ...)
   end

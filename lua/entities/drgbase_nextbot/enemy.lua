@@ -80,8 +80,21 @@ if SERVER then
 
   -- Coroutine --
 
-  function ENT:DoHandleEnemy(enemy, state)
-    if self:IsEnemy(enemy) then
+  function ENT:DoHandleEnemy()
+    while self:HasEnemy() do
+      if self:IsAIDisabled() then break end
+      if self:IsPossessed() then break end
+      local enemy = self:GetEnemy()
+      --self:MoveToPos(enemy:GetPos(), {maxage = 1})
+      self:FollowPath(enemy)
+      --self:MoveTowards(enemy)
+      
+
+      
+      
+      self:YieldCoroutine(true)
+    end
+    --[[if self:IsEnemy(enemy) then
       if state == DETECT_STATE_DETECTED then
         local visible = self:Visible(enemy)
         if not self:IsInRange(enemy, self.ReachEnemyRange) or not visible then
@@ -103,8 +116,9 @@ if SERVER then
           if IsValid(enemy) then self:DoAttack(enemy) end
         else self:DoPassive() end
       else self:DoPassive() end
-    else self:DoPassive() end
+    else self:DoPassive() end]]
   end
+
   function ENT:DoAttack(enemy)
     local weapon = self:GetWeapon()
     if self:IsInRange(enemy, self.MeleeAttackRange) and

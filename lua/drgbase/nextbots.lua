@@ -1,22 +1,18 @@
--- Misc --
+-- Cache --
 
-DrG_Nextbots = DrG_Nextbots or {}
-function DrGBase.NextbotIterator(class)
-  local i = 1
+function DrGBase.NextbotIterator()
+  local cache = list.GetForEdit("DrG/NextbotCache")
+  local nb = nil
   return function()
-    for j = i, #DrG_Nextbots do
-      local ent = DrG_Nextbots[j]
-      if not IsValid(ent) then continue end
-      if class and class ~= ent:GetClass() then continue end
-      i = j+1
-      return ent
-    end
+    nb = next(cache, nb)
+    return nb
   end
 end
-function DrGBase.GetNextbots(class)
+
+function DrGBase.GetNextbots()
   local nextbots = {}
-  for nextbot in DrGBase.NextbotIterator(class) do
-    table.insert(nextbots, nextbot)
+  for nb in DrGBase.NextbotIterator() do
+    table.insert(nextbots, nb)
   end
   return nextbots
 end
@@ -93,7 +89,7 @@ if CLIENT then
 
   end)
 
-  hook.Add("DrG/PopulateSpawnmenu", "AddDrGBaseNextbots", function(panel, tree)
+  hook.Add("DrG/PopulateSpawnmenu", "DrG/AddNextbots", function(panel, tree)
     local categories = {}
     for class, nextbot in pairs(list.Get("DrG/Nextbots")) do
       local category = nextbot.Category or "Other"

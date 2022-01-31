@@ -7,8 +7,9 @@ else
 
   end)
 
-  concommand.Add("drgbase_cmd_print_missing_translations", function(_, _, args)
-    local lang = DrGBase.GetLanguage(args[1])
+  concommand.Add("drgbase_cmd_missing_translations", function(_, _, args)
+    local id = args[1] or GetConVar("gmod_language"):GetString()
+    local lang = DrGBase.GetLanguage(id)
     if lang then
       local missing = lang:MissingTranslations()
       local nbMissing = table.Count(missing)
@@ -31,18 +32,13 @@ else
         DrGBase.Info(str)
       else DrGBase.Info("The language '"..lang.Name.."' isn't missing any translations.") end
     else
-      local str = "The language '"..args[1].."' doesn't exist."
+      local str = "The language '"..id.."' doesn't exist."
       str = str.."\n  List of available languages:"
       for id, lang in DrGBase.LanguageIterator() do
         str = str.."\n  - "..id.." ("..lang.Name..")"
       end
       DrGBase.Error(str)
     end
-  end)
-
-  concommand.Add("drbase_command_reload_languages_and_spawnmenu", function()
-    RunConsoleCommand("drgbase_cmd_reload_languages")
-    RunConsoleCommand("spawnmenu_reload")
   end)
 
 end

@@ -22,7 +22,7 @@ end
 
 -- Spawnmenu --
 
-hook.Add("DrG/PopulateSpawnmenu", "AddWeapons", function(panel, tree)
+hook.Add("DrG/PopulateSpawnmenu", "DrG/AddWeapons", function(panel, tree)
 	--
 end)
 

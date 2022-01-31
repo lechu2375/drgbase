@@ -41,7 +41,7 @@ end
 
 -- Spawnmenu --
 
-hook.Add("DrG/PopulateSpawnmenu", "AddSpawners", function(panel, tree)
+hook.Add("DrG/PopulateSpawnmenu", "DrG/AddSpawners", function(panel, tree)
 	local spawners = list.Get("DrG/Spawners")
 	
 end)

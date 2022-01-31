@@ -16,6 +16,24 @@ function entMETA:DrG_SearchBone(searchBone)
   return -1
 end
 
+function entMETA:DrG_GetPlayerColor()
+  return isfunction(self.GetPlayerColor)
+    and self:GetPlayerColor():ToColor()
+    or nil
+end
+
+function entMETA:DrG_SetPlayerColor(color)
+  local vec = color:ToVector()
+  if self:IsPlayer() then return self:SetPlayerColor(vec) end
+  function self.GetPlayerColor() return vec end
+  if SERVER then
+    net.Start("DrG/SetPlayerColor")
+    net.WriteEntity(self)
+    net.WriteColor(color)
+    net.Broadcast()
+  end
+end
+
 -- Traces --
 
 function entMETA:DrG_TraceLine(data, arg2)
@@ -100,6 +118,7 @@ function entMETA:DrG_LoopTimer(delay, callback, ...)
 end
 
 if SERVER then
+  util.AddNetworkString("DrG/SetPlayerColor")
 
   -- Misc --
 
@@ -134,7 +153,7 @@ if SERVER then
     local dissolver = ents.Create("env_entity_dissolver")
     if not IsValid(dissolver) then return false end
     if self:GetName() == "" then
-      self:SetName("ent_"..self:GetClass().."_"..self:EntIndex().."_dissolved")
+      self:SetName("ent_"..self:GetClass().."_"..self:GetCreationID().."_dissolved")
     end
     dissolver:SetKeyValue("dissolvetype", tostring(type or 0))
     dissolver:Fire("dissolve", self:GetName())
@@ -157,6 +176,10 @@ if SERVER then
       ragdoll:SetModel(self:GetModel())
       ragdoll:SetSkin(self:GetSkin())
       ragdoll:SetColor(self:GetColor())
+      local playerColor = self:DrG_GetPlayerColor()
+      if playerColor then
+        ragdoll:DrG_SetPlayerColor(playerColor)
+      end
       ragdoll:SetModelScale(self:GetModelScale())
       ragdoll:SetBloodColor(self:GetBloodColor())
       for i = 1, #self:GetBodyGroups() do
@@ -190,6 +213,7 @@ if SERVER then
       return ragdoll
     else return NULL end
   end
+
   function entMETA:DrG_BecomeRagdoll(dmg)
     if self:IsPlayer() then
       if not self:Alive() then return NULL
@@ -210,6 +234,7 @@ if SERVER then
       return ragdoll
     else return NULL end
   end
+
   function entMETA:DrG_RagdollDeath(dmg)
     if dmg then self:DrG_DeathNotice(dmg:GetAttacker(), dmg:GetInflictor()) end
     return self:DrG_BecomeRagdoll(dmg)
@@ -226,6 +251,7 @@ if SERVER then
       else return self:DrG_AimAt(self:GetPos()+self:GetForward()*speed, speed) end
     else return dir, info end
   end
+
   function entMETA:DrG_ThrowAt(target, options)
     local phys = self:GetPhysicsObject()
     if not IsValid(phys) then return end
@@ -245,6 +271,32 @@ if SERVER then
     }).Hit then return false end
     self:SetPos(pos)
     return true
+  end
+
+  function entMETA:DrG_GetDisposition(ent)
+    if not IsValid(ent) then return D_ER
+    elseif self == ent then return D_NU
+    elseif self:IsNPC() or self.IsDrGNextbot then
+      return self:Disposition(ent)
+    elseif self.IV04NextBot then
+      local disp = self:CheckRelationships(ent)
+      if disp == "friend" then return D_LI
+      elseif disp == "foe" then return D_HT
+      else return D_NU end
+    elseif self:IsPlayer() then
+      if not ent:IsPlayer() then
+        return ent:Disposition(self)
+      else
+        local myTeam = self:Team()
+        local entTeam = ent:Team()
+        if myTeam == TEAM_CONNECTING or entTeam == TEAM_CONNECTING
+        or myTeam == TEAM_UNASSIGNED or entTeam == TEAM_UNASSIGNED
+        or myTeam == TEAM_SPECTATOR or entTeam == TEAM_SPECTATOR then return D_NU
+        elseif myTeam == entTeam then return D_LI
+        else return D_HT end
+      end
+    end
+    return D_NU
   end
 
   -- Effects --
@@ -301,149 +353,17 @@ if SERVER then
     return light
   end
 
-  -- Factions --
-
-  local function InitFactions(self)
-    if not IsValid(self) then return false end
-    if self.DrG_Factions then return true end
-    self.DrG_Factions = {}
-    local faction = DrGBase.GetDefaultFaction(self:GetClass())
-    if faction then self:DrG_JoinFaction(faction) end
-    return true
-  end
-
-  function entMETA:DrG_JoinFaction(faction)
-    if not InitFactions(self) then return end
-    if not self:DrG_IsInFaction(faction) then
-      self.DrG_Factions[string.upper(faction)] = true
-      if self.IsDrGNextbot then self:AddFactionRelationship(faction, D_LI, 1) end
-      for nb in DrGBase.NextbotIterator() do
-        if nb == self then continue end
-        nb:UpdateRelationshipWith(self)
-      end
-      hook.Run("DrG/JoinFaction", self, string.upper(faction))
-    end
-  end
-  function entMETA:DrG_JoinFactions(factions)
-    for i = 1, #factions do self:DrG_JoinFaction(factions[i]) end
-  end
-
-  function entMETA:DrG_LeaveFaction(faction)
-    if not InitFactions(self) then return end
-    if self:DrG_IsInFaction(faction) then
-      self.DrG_Factions[string.upper(faction)] = nil
-      if self.IsDrGNextbot then self:AddFactionRelationship(faction, D_NU, 1) end
-      for nb in DrGBase.NextbotIterator() do
-        if nb == self then continue end
-        nb:UpdateRelationshipWith(self)
-      end
-      hook.Run("DrG/LeaveFaction", self, string.upper(faction))
-    end
-  end
-  function entMETA:DrG_LeaveFactions(factions)
-    for i = 1, #factions do self:DrG_LeaveFaction(factions[i])end
-  end
-  function entMETA:DrG_LeaveAllFactions()
-    return self:DrG_LeaveFactions(self:DrG_GetFactions())
-  end
-
-  function entMETA:DrG_IsInFaction(faction)
-    if not InitFactions(self) then return false end
-    return self.DrG_Factions[string.upper(faction)] or false
-  end
-
-  function entMETA:DrG_GetFactions()
-    if not InitFactions(self) then return {} end
-    local factions = {}
-    for faction in pairs(self.DrG_Factions) do
-      table.insert(factions, faction)
-    end
-    return factions
-  end
-
-  local DEFAULT_FACTIONS = {
-    ["player"] = "FACTION_PLAYERS",
-    ["npc_crow"] = "FACTION_ANIMALS",
-    ["npc_monk"] = "FACTION_REBELS",
-    ["npc_pigeon"] = "FACTION_ANIMALS",
-    ["npc_seagull"] = "FACTION_ANIMALS",
-    ["npc_combine_camera"] = "FACTION_COMBINE",
-    ["npc_turret_ceiling"] = "FACTION_COMBINE",
-    ["npc_cscanner"] = "FACTION_COMBINE",
-    ["npc_combinedropship"] = "FACTION_COMBINE",
-    ["npc_combinegunship"] = "FACTION_COMBINE",
-    ["npc_combine_s"] = "FACTION_COMBINE",
-    ["npc_hunter"] = "FACTION_COMBINE",
-    ["npc_helicopter"] = "FACTION_COMBINE",
-    ["npc_manhack"] = "FACTION_COMBINE",
-    ["npc_metropolice"] = "FACTION_COMBINE",
-    ["npc_rollermine"] = "FACTION_COMBINE",
-    ["npc_clawscanner"] = "FACTION_COMBINE",
-    ["npc_stalker"] = "FACTION_COMBINE",
-    ["npc_strider"] = "FACTION_COMBINE",
-    ["npc_turret_floor"] = "FACTION_COMBINE",
-    ["npc_alyx"] = "FACTION_REBELS",
-    ["npc_barney"] = "FACTION_REBELS",
-    ["npc_citizen"] = "FACTION_REBELS",
-    ["npc_dog"] = "FACTION_REBELS",
-    ["npc_magnusson"] = "FACTION_REBELS",
-    ["npc_kleiner"] = "FACTION_REBELS",
-    ["npc_mossman"] = "FACTION_REBELS",
-    ["npc_eli"] = "FACTION_REBELS",
-    ["npc_fisherman"] = "FACTION_REBELS",
-    ["npc_gman"] = "FACTION_GMAN",
-    ["npc_odessa"] = "FACTION_REBELS",
-    ["npc_vortigaunt"] = "FACTION_REBELS",
-    ["npc_breen"] = "FACTION_COMBINE",
-    ["npc_antlion"] = "FACTION_ANTLIONS",
-    ["npc_antlion_grub"] = "FACTION_ANTLIONS",
-    ["npc_antlionguard"] = "FACTION_ANTLIONS",
-    ["npc_antlionguardian"] = "FACTION_ANTLIONS",
-    ["npc_antlion_worker"] = "FACTION_ANTLIONS",
-    ["npc_barnacle"] = "FACTION_BARNACLES",
-    ["npc_headcrab_fast"] = "FACTION_ZOMBIES",
-    ["npc_fastzombie"] = "FACTION_ZOMBIES",
-    ["npc_fastzombie_torso"] = "FACTION_ZOMBIES",
-    ["npc_headcrab"] = "FACTION_ZOMBIES",
-    ["npc_headcrab_black"] = "FACTION_ZOMBIES",
-    ["npc_poisonzombie"] = "FACTION_ZOMBIES",
-    ["npc_zombie"] = "FACTION_ZOMBIES",
-    ["npc_zombie_torso"] = "FACTION_ZOMBIES",
-    ["npc_zombine"] = "FACTION_ZOMBIES",
-    ["monster_alien_grunt"] = "FACTION_XEN_ARMY",
-    ["monster_alien_slave"] = "FACTION_XEN_ARMY",
-    ["monster_human_assassin"] = "FACTION_HECU",
-    ["monster_babycrab"] = "FACTION_ZOMBIES",
-    ["monster_bullchicken"] = "FACTION_XEN_WILDLIFE",
-    ["monster_cockroach"] = "FACTION_ANIMALS",
-    ["monster_alien_controller"] = "FACTION_XEN_ARMY",
-    ["monster_gargantua"] = "FACTION_XEN_ARMY",
-    ["monster_bigmomma"] = "FACTION_ZOMBIES",
-    ["monster_human_grunt"] = "FACTION_HECU",
-    ["monster_headcrab"] = "FACTION_ZOMBIES",
-    ["monster_houndeye"] = "FACTION_XEN_WILDLIFE",
-    ["monster_nihilanth"] = "FACTION_XEN_ARMY",
-    ["monster_scientist"] = "FACTION_REBELS",
-    ["monster_barney"] = "FACTION_REBELS",
-    ["monster_snark"] = "FACTION_XEN_WILDLIFE",
-    ["monster_tentacle"] = "FACTION_XEN_WILDLIFE",
-    ["monster_zombie"] = "FACTION_ZOMBIES",
-    ["npc_apc_dropship"] = "FACTION_COMBINE",
-    ["npc_elite_overwatch_dropship"] = "FACTION_COMBINE",
-    ["npc_civil_protection_tier1_dropship"] = "FACTION_COMBINE",
-    ["npc_civil_protection_tier2_dropship"] = "FACTION_COMBINE",
-    ["npc_shotgunner_dropship"] = "FACTION_COMBINE",
-    ["npc_overwatch_squad_tier1_dropship"] = "FACTION_COMBINE",
-    ["npc_overwatch_squad_tier2_dropship"] = "FACTION_COMBINE",
-    ["npc_overwatch_squad_tier3_dropship"] = "FACTION_COMBINE",
-    ["npc_random_combine_dropship"] = "FACTION_COMBINE",
-    ["npc_strider_dropship"] = "FACTION_COMBINE"
-  }
-  function DrGBase.GetDefaultFaction(class)
-    return DEFAULT_FACTIONS[class]
-  end
-
 else
+
+  -- Misc --
+
+  net.Receive("DrG/SetPlayerColor", function(ent, color)
+    local ent = net.ReadEntity()
+    local color = net.ReadColor()
+    if IsValid(ent) then
+      ent:DrG_SetPlayerColor(color)
+    end
+  end)
 
   -- Effects --
 

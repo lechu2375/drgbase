@@ -66,23 +66,38 @@ if SERVER then
   })
 
   function ENT:Initialize()
-    self:SetPlayersRelationship(D_HT)
+    self:SetDefaultRelationship(D_HT)
+    self:SetPlayersRelationship(D_HT, 2)
     self:AddAnimEventCycle("walk_all", {0.28, 0.78}, "drg.footstep")
     self:AddAnimEventCycle("cwalk_all", {0.28, 0.78}, "drg.footstep")
     self:AddAnimEventCycle("run_all_02", {0.28, 0.78}, "drg.footstep")
+    self:DrG_SetPlayerColor(Color(
+      math.random()*255,
+      math.random()*255,
+      math.random()*255
+    ))
+  end
+
+  function ENT:Use()
+    self:Timer(1, self.DrG_Dissolve)
+    self:DrG_Dissolve()
   end
 
   function ENT:DoMeleeAttack()
-    if self:GetCooldown("RiseAndShine") > 0 then return end
-    self:EmitSound("DrGBase.RiseAndShine")
-    self:PlaySequence("gesture_wave")
-    self:SetCooldown("RiseAndShine", 7)
+    if self:Cooldown("RiseAndShine", 7) then
+      self:EmitSound("DrGBase.RiseAndShine")
+      self:PlaySequence("gesture_wave")
+    end
   end
 
   function ENT:OnPossessionBinds(binds)
     if binds:KeyPressed(IN_ATTACK) then
       self:DoMeleeAttack()
     end
+  end
+
+  function ENT:OnRemove()
+    self:StopSound("DrGBase.RiseAndShine")
   end
 
   function ENT:OnTakeDamage(dmg, hitgroup)

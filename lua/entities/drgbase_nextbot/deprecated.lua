@@ -218,4 +218,25 @@ if SERVER then
     "ENT:AddAnimEventCycle(sequence, cycle, event)",
     function() end)
 
+  ENT.CalcPosDirection = DrGBase.Deprecated(
+    "ENT:CalcPosDirection(pos, overlaps)",
+    "ENT:CalculateDirection(pos, overlaps)",
+    function(self, pos, overlaps)
+      local angle
+      if overlaps then
+        angle = math.AngleDifference(self:GetAngles().y + 202.5, (pos - self:GetPos()):Angle().y) + 180
+      else
+        angle = math.AngleDifference(self:GetAngles().y + 225, (pos - self:GetPos()):Angle().y) + 180
+      end
+      local dir = self:CalculateDirection(pos, overlaps)
+      if dir.front and dir.left then return "NW", angle end
+      if dir.front and dir.right then return "NE", angle end
+      if dir.back and dir.left then return "SW", angle end
+      if dir.back and dir.right then return "SE", angle end
+      if dir.front then return "N", angle end
+      if dir.back then return "S", angle end
+      if dir.left then return "W", angle end
+      if dir.right then return "E", angle end
+    end)
+
 end

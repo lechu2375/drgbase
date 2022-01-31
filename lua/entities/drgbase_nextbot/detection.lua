@@ -18,7 +18,7 @@ if SERVER then
   -- Detection --
 
   function ENT:SetOmniscient(omniscient)
-    self:SetNW2Bool("DrG/Omniscient", tobool(omniscient))
+    self:SetNW2Bool("DrG/Omniscient", omniscient)
   end
 
   ENT.DrG_DetectState = {}
@@ -135,14 +135,14 @@ if SERVER then
   -- Vision --
 
   function ENT:GetMinLuminosity()
-    return math.Clamp(self.MinLuminosity, 0, 1)
+    return math.Clamp(tonumber(self.MinLuminosity), 0, 1)
   end
   function ENT:SetMinLuminosity(luminosity)
     self.MinLuminosity = tonumber(luminosity)
   end
 
   function ENT:GetMaxLuminosity()
-    return math.Clamp(self.MaxLuminosity, 0, 1)
+    return math.Clamp(tonumber(self.MaxLuminosity), 0, 1)
   end
   function ENT:SetMaxLuminosity(luminosity)
     self.MaxLuminosity = tonumber(luminosity)
@@ -268,7 +268,6 @@ if SERVER then
           self:OnSight(ent)
         else
           self:OnEntitySight(ent)
-          self:ReactInCoroutine(self.DoEntitySight, ent)
         end
         if ent:IsPlayer() then ent:DrG_Send("DrG/PlayerSight", self) end
       else self:OnEntitySightKept(ent, angle) end
@@ -280,11 +279,15 @@ if SERVER then
           self:OnLostSight(ent)
         else
           self:OnEntitySightLost(ent)
-          self:ReactInCoroutine(self.DoEntitySightLost, ent)
         end
         if ent:IsPlayer() then ent:DrG_Send("DrG/PlayerSightLost", self) end
       else self:OnEntityNotInSight(ent) end
     end
+  end
+
+  function ENT:IsAbleToSeeCached(ent)
+    if not IsValid(ent) then return false end
+    return self.DrG_InSight[ent] or false
   end
 
   -- hooks
@@ -350,12 +353,6 @@ if SERVER then
       end
     end
   end)
-
-  -- Other --
-
-  function ENT:OnContact(ent)
-    self:SearchEntity(ent)
-  end
 
 else
 

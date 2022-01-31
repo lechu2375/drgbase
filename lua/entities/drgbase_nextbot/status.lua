@@ -200,19 +200,16 @@ if SERVER then
   local function NextbotDeath(self, dmg)
     if not IsValid(self) then return end
     if self:HasWeapon() and self:ShouldDropWeapon() then self:DropWeapon() end
-    if self.RagdollOnDeath then
-      local ragdoll = self:BecomeRagdoll(dmg)
-      if IsValid(ragdoll) then
-        if DrGBase.RagdollsDisableCollisions:GetBool() or
-        not GetConVar("ai_serverragdolls"):GetBool() then
-          ragdoll:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
-        end
-        if not self.DrG_OnRagdollRes and
-        DrGBase.RagdollsRemove:GetFloat() >= 0 then
-          ragdoll:Fire("fadeandremove", math.Clamp(DrGBase.RagdollsFadeOut:GetFloat(), 0, math.huge), DrGBase.RagdollsRemove:GetFloat())
-        end
+    if not self.RagdollOnDeath then return self:Remove() end
+    local ragdoll = self:BecomeRagdoll(dmg)
+    if IsValid(ragdoll) then
+      if DrGBase.RagdollsDisableCollisions:GetBool() or not GetConVar("ai_serverragdolls"):GetBool() then
+        ragdoll:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
       end
-    else self:Remove() end
+      if not self.DrG_OnRagdollRes and DrGBase.RagdollsRemove:GetFloat() >= 0 then
+        ragdoll:Fire("fadeandremove", math.Clamp(DrGBase.RagdollsFadeOut:GetFloat(), 0, math.huge), DrGBase.RagdollsRemove:GetFloat())
+      end
+    end
   end
 
   local OnDeathDeprecation = DrGBase.Deprecation("ENT:OnDeath(dmginfo, hitgroup)", "ENT:DoDeath(dmginfo, hitgroup)")

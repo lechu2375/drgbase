@@ -4,10 +4,12 @@ function ENT:IsInRange(pos, range)
   if isentity(pos) and not IsValid(pos) then return false end
   return self:GetHullRangeSquaredTo(pos) <= (range*self:GetModelScale())^2
 end
+
 function ENT:GetHullRangeTo(pos)
   if isentity(pos) then pos = pos:NearestPoint(self:GetPos()) end
   return self:NearestPoint(pos):Distance(pos)
 end
+
 function ENT:GetHullRangeSquaredTo(pos)
   if isentity(pos) then pos = pos:NearestPoint(self:GetPos()) end
   return self:NearestPoint(pos):DistToSqr(pos)
@@ -19,6 +21,7 @@ function ENT:Height()
   local bound1, bound2 = self:GetCollisionBounds()
   return math.abs(bound1.z - bound2.z)
 end
+
 function ENT:Length()
   local bound1, bound2 = self:GetCollisionBounds()
   bound1.z, bound2.z = 0, 0
@@ -136,6 +139,12 @@ if SERVER then
       ):GetNormalized()*attack.force:Length()) end
       if not isfunction(fn) or fn(self, ent, dmg) ~= false then
         if isangle(attack.viewpunch) and ent:IsPlayer() then ent:ViewPunch(attack.viewpunch) end
+        if ent:GetSolid() == SOLID_VPHYSICS then
+          local phys = ent:GetPhysicsObject()
+          if IsValid(phys) then
+            phys:AddVelocity(dmg:GetDamageForce())
+          end
+        end
         if attack.push then
           if ent:IsPlayer() then ent:SetVelocity(dmg:GetDamageForce())
           else ent:SetVelocity(ent:GetVelocity() + dmg:GetDamageForce()) end
@@ -192,6 +201,33 @@ if SERVER then
       self:SetPoseParameter(pitch, 0)
       self:SetPoseParameter(yaw, 0)
     end
+  end
+
+  function ENT:CalculateAngle(pos)
+    if isentity(pos) then pos = pos:GetPos() end
+    return math.AngleDifference(self:GetAngles().y, (pos - self:GetPos()):Angle().y)
+  end
+
+  function ENT:CalculateDirection(pos, overlaps)
+    if isentity(pos) then pos = pos:GetPos() end
+    local angle = self:CalculateAngle(pos)
+    local dir = { front = false, back = false, left = false, right = false }
+    if overlaps then
+      dir.front = angle >= -67.5 and angle <= 67.5
+      dir.right = angle >= 22.5 and angle <= 157.5
+      dir.back = angle >= 112.5 or angle <= -112.5
+      dir.left = angle >= -157.5 and angle <= -22.5
+    else
+      dir.front = angle > -45 and angle <= 45
+      dir.right = angle > 45 and angle <= 135
+      dir.back = angle > 135 or angle <= -135
+      dir.left = angle > -135 and angle <= -45
+    end
+    return dir, angle
+  end
+
+  function ENT:SetCollisionBoundsSimple(bounds)
+    self:SetCollisionBounds(Vector(-bounds.x, -bounds.y, 0), Vector(bounds.x, bounds.y, bounds.z))
   end
 
   -- Jump --
@@ -295,12 +331,22 @@ if SERVER then
     else return SetPos(self, pos, ...) end
   end
 
+  local SetCollisionBounds = entMETA.SetCollisionBounds
+  function entMETA:SetCollisionBounds(mins, maxs, ...)
+    if self.IsDrGNextbot and IsValid(self:GetPhysicsObject()) then
+      self:PhysicsDestroy()
+      local res = SetCollisionBounds(self, mins, maxs, ...)
+      self:PhysicsInitShadow()
+      return res
+    else return SetCollisionBounds(self, mins, maxs, ...) end
+  end
+
   local nbMETA = FindMetaTable("NextBot")
 
   local BecomeRagdoll = nbMETA.BecomeRagdoll
   function nbMETA:BecomeRagdoll(...)
     if self.IsDrGNextbot then
-      return self:DrG_BecomeRagdoll(...) -- calls self:OnRagdoll
+      return self:DrG_BecomeRagdoll(...)
     else return BecomeRagdoll(self, ...) end
   end
 
